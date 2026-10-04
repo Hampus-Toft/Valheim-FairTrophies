@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="FairTrophies/FairTrophies.csproj" />
+  <Project Path="FairTrophies.Tests/FairTrophies.Tests.csproj" />
+</Solution>

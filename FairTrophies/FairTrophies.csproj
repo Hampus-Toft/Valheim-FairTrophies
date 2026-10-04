@@ -1,0 +1,94 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <!--
+      MSB3277: Valheim's game assemblies were built against older Mono-era facade versions of
+      System.Net.Http/System.IO.Compression than the netstandard2.1 SDK's reference assemblies.
+      Compile-time-only facades, never copied to the output - the conflict is cosmetic.
+    -->
+    <NoWarn>$(NoWarn);MSB3277</NoWarn>
+  </PropertyGroup>
+
+  <!--
+    Set the VALHEIM_INSTALL_DIR environment variable (or pass -p:ValheimInstallDir="...") on
+    machines where Valheim isn't installed at the default Steam location below.
+  -->
+  <PropertyGroup>
+    <ValheimInstallDir Condition="'$(VALHEIM_INSTALL_DIR)' != ''">$(VALHEIM_INSTALL_DIR)</ValheimInstallDir>
+    <ValheimInstallDir Condition="'$(ValheimInstallDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Valheim</ValheimInstallDir>
+    <ValheimPluginsDir>$(ValheimInstallDir)\BepInEx\plugins</ValheimPluginsDir>
+    <!--
+      Only kill/relaunch the game for a Debug build started from this folder (`dotnet build` here) or from
+      Visual Studio - never for Release, solution-wide builds, or `dotnet test` building this as a reference.
+      (Deliberately not done via AdditionalProperties on the test ProjectReference: a second global-property
+      build of this project races the solution's own build for obj\FairTrophies.dll.)
+    -->
+    <_StartedHere Condition="'$([MSBuild]::EnsureTrailingSlash($(MSBuildStartupDirectory)))' == '$([MSBuild]::EnsureTrailingSlash($(MSBuildProjectDirectory)))'">true</_StartedHere>
+    <AutoLaunchValheim Condition="'$(AutoLaunchValheim)' == '' and '$(Configuration)' == 'Debug' and ('$(_StartedHere)' == 'true' or '$(BuildingInsideVisualStudio)' == 'true')">true</AutoLaunchValheim>
+    <AutoLaunchValheim Condition="'$(AutoLaunchValheim)' == ''">false</AutoLaunchValheim>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="0Harmony">
+      <HintPath>$(ValheimInstallDir)\BepInEx\core\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="assembly_utils">
+      <HintPath>$(ValheimInstallDir)\valheim_Data\Managed\assembly_utils.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="assembly_valheim">
+      <HintPath>$(ValheimInstallDir)\valheim_Data\Managed\assembly_valheim.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="BepInEx">
+      <HintPath>$(ValheimInstallDir)\BepInEx\core\BepInEx.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(ValheimInstallDir)\valheim_Data\Managed\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(ValheimInstallDir)\valheim_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Error Condition="!Exists('$(ValheimInstallDir)')" Text="ValheimInstallDir '$(ValheimInstallDir)' does not exist. Pass -p:ValheimInstallDir=&quot;...&quot; to override." />
+
+    <MakeDir Directories="$(ValheimPluginsDir)" Condition="!Exists('$(ValheimPluginsDir)')" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ValheimPluginsDir)" SkipUnchangedFiles="false" />
+
+    <Exec Command="taskkill /F /IM valheim.exe"
+          Condition="'$(AutoLaunchValheim)' == 'true'"
+          ContinueOnError="true"
+          IgnoreExitCode="true" />
+
+    <Exec Command="start &quot;&quot; &quot;steam://rungameid/892970//-devcommands -console&quot;"
+          Condition="'$(AutoLaunchValheim)' == 'true'"
+          ContinueOnError="true" />
+  </Target>
+
+  <!--
+    Builds a Thunderstore/r2modman/Gale-importable zip (manifest.json + icon.png + README.md +
+    CHANGELOG.md + the plugin DLL) under bin/Thunderstore. manifest.json's version_number is
+    generated from FairTrophiesPlugin.PluginVersion at pack time (Thunderstore/Pack.ps1).
+    Usage: dotnet build -c Release -t:ThunderstorePack
+    (Not named "Pack" - the SDK's NuGet packaging target already claims that name.)
+  -->
+  <PropertyGroup>
+    <ThunderstoreNamespace Condition="'$(ThunderstoreNamespace)' == ''">HampusToft</ThunderstoreNamespace>
+    <ThunderstoreOutDir>$(MSBuildProjectDirectory)\bin\Thunderstore</ThunderstoreOutDir>
+  </PropertyGroup>
+
+  <Target Name="ThunderstorePack" DependsOnTargets="Build">
+    <MakeDir Directories="$(ThunderstoreOutDir)" Condition="!Exists('$(ThunderstoreOutDir)')" />
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Thunderstore\Pack.ps1&quot; -ProjectDir &quot;$(MSBuildProjectDirectory)&quot; -TargetPath &quot;$(TargetPath)&quot; -OutDir &quot;$(ThunderstoreOutDir)&quot; -Namespace &quot;$(ThunderstoreNamespace)&quot;" />
+  </Target>
+
+</Project>

@@ -1,0 +1,5 @@
+/.vs
+/.claude/worktrees
+bin/
+obj/
+*.user

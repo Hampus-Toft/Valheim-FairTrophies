@@ -1,0 +1,9 @@
+{
+  "name": "FairTrophies",
+  "version_number": "__VERSION__",
+  "website_url": "https://github.com/Hampus-Toft/FairTrophies",
+  "description": "Fair trophy drops: one shared bad-luck counter per creature, starred kills fill it faster instead of resetting it.",
+  "dependencies": [
+    "denikson-BepInExPack_Valheim-5.4.2333"
+  ]
+}
