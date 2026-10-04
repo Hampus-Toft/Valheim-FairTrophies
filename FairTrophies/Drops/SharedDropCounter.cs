@@ -126,6 +126,17 @@ namespace FairTrophies
         /// </summary>
         public static bool IsGoverned(float baseChance) => baseChance > 0f && baseChance <= PseudoDropThreshold;
 
+        /// <summary>
+        /// How many times a won drop's amount is multiplied for the creature's star level. Vanilla multiplies by the same
+        /// 2^(level-1) as the chance for m_levelMultiplier drops, so a 2-star Unbjorn would drop 4 trophies; a trophy
+        /// already gets its star bonus through the faster-filling counter, so it always drops as one.
+        /// </summary>
+        public static int AmountMultiplier(int level, bool levelMultiplier, bool isTrophy)
+        {
+            if (isTrophy || !levelMultiplier || level <= 1) return 1;
+            return (int)Math.Pow(2, level - 1);
+        }
+
         public const float PseudoDropThreshold = 0.3f;
     }
 }

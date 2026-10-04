@@ -9,7 +9,7 @@ namespace FairTrophies
         // Author "Hampus Toft"; the ID follows the Thunderstore namespace (HampusToft) + package name.
         public const string PluginGUID = "HampusToft.FairTrophies";
         public const string PluginName = "FairTrophies";
-        public const string PluginVersion = "1.0.0";
+        public const string PluginVersion = "1.0.1";
 
         private Harmony harmony;
 

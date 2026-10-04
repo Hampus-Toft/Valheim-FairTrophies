@@ -153,6 +153,18 @@ namespace FairTrophies.Tests.Drops
         }
 
         [Theory]
+        [InlineData(3, true, true, 1)]   // 2-star Unbjorn: one trophy, not vanilla's four
+        [InlineData(2, true, true, 1)]
+        [InlineData(3, true, false, 4)]  // 2-star Jotun mold / goblin coins: vanilla amount scaling kept
+        [InlineData(2, true, false, 2)]
+        [InlineData(3, false, false, 1)]
+        [InlineData(1, true, false, 1)]
+        public void AmountMultiplierKeepsTrophiesSingle(int level, bool levelMultiplier, bool isTrophy, int expected)
+        {
+            Assert.Equal(expected, SharedDropCounter.AmountMultiplier(level, levelMultiplier, isTrophy));
+        }
+
+        [Theory]
         [InlineData(0.05f, true)]
         [InlineData(0.3f, true)]
         [InlineData(0.33f, false)]

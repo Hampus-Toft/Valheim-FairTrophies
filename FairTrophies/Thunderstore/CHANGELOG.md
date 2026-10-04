@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1
+
+- Trophies always drop as a single trophy. Star levels still make them come sooner (a 2-star kill counts four times),
+  but no longer also multiply the amount - a 2-star Unbjorn dropped 4 trophies, as it does in vanilla.
+
 ## 1.0.0
 
 - One bad-luck counter per item, shared by every star level: starred kills count 2x/4x (vanilla's multipliers)

@@ -12,7 +12,9 @@ of kills. FairTrophies keeps vanilla's drop rates exactly, and fixes what makes 
 | The countdown lives in the memory of whichever player's game is simulating the creature - your kills can use up a friend's countdown. | Every character has their own countdowns. Kills only ever count for the character credited with them. |
 | Lost every time the game closes. | Saved in the character file, so it follows the character between sessions, worlds and servers. |
 
-Drop chances and amounts always come from the game's own drop tables - nothing to configure. The `NoPseudoDrops`
+Drop chances and amounts always come from the game's own drop tables - nothing to configure. The one exception:
+a trophy always drops as one trophy (vanilla gives a 2-star Unbjorn's trophy x4); its star bonus comes from the
+counter filling faster instead. The `NoPseudoDrops`
 world modifier is respected (FairTrophies stays out of the way when it is on).
 
 ## Who gets credit for a kill

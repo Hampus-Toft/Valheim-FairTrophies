@@ -19,7 +19,6 @@ namespace FairTrophies
         {
             player.m_customData.TryGetValue(CustomDataKey, out string saved);
             SharedDropCounter counter = SharedDropCounter.Parse(saved, () => Random.value);
-            int amountMultiplier = Mathf.Max(1, (int)Mathf.Pow(2f, level - 1));
 
             var drops = new List<KeyValuePair<int, int>>();
             foreach (CharacterDrop.Drop drop in table.m_drops)
@@ -36,7 +35,9 @@ namespace FairTrophies
                             $"{(left.HasValue ? (left.Value / drop.m_chance).ToString("0.0") : "-")} base kills to next");
                 if (!dropped) continue;
 
-                int amount = VanillaAmount(drop, amountMultiplier);
+                ItemDrop itemDrop = drop.m_prefab.GetComponent<ItemDrop>();
+                bool isTrophy = itemDrop != null && itemDrop.m_itemData.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Trophy;
+                int amount = VanillaAmount(drop, SharedDropCounter.AmountMultiplier(level, drop.m_levelMultiplier, isTrophy));
                 if (amount > 0) drops.Add(new KeyValuePair<int, int>(item.GetStableHashCode(), amount));
             }
 
@@ -44,13 +45,14 @@ namespace FairTrophies
             return drops;
         }
 
-        // Mirrors the amount half of vanilla CharacterDrop.GenerateDropList.
+        // Mirrors the amount half of vanilla CharacterDrop.GenerateDropList, except the star multiplier comes from
+        // SharedDropCounter.AmountMultiplier (no star multiplier for trophies).
         private static int VanillaAmount(CharacterDrop.Drop drop, int amountMultiplier)
         {
             int amount = drop.m_dontScale
                 ? Random.Range(drop.m_amountMin, drop.m_amountMax)
                 : Game.instance.ScaleDrops(drop.m_prefab, drop.m_amountMin, drop.m_amountMax);
-            if (drop.m_levelMultiplier) amount *= amountMultiplier;
+            amount *= amountMultiplier;
             if (drop.m_onePerPlayer) amount = ZNet.instance.GetNrOfPlayers();
             return Mathf.Min(amount, 100);
         }
