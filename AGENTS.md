@@ -71,6 +71,21 @@ FairTrophies/
 MAJOR for breaking save-format changes - and add a `Thunderstore/CHANGELOG.md` entry. Never hand-edit a version in
 `manifest.template.json`.
 
+## Publishing (human only)
+
+Releases go to Thunderstore and Hexium (team `HampusMods`) via `tools/Publish.ps1`, which also tags the release
+`v<version>`. **Agents never run it without `-DryRun`, and never upload to either site by any other means** (direct
+API calls, `tcli`, ...) - not even when asked to "release" or "publish"; hand the command to the human instead.
+`.claude/settings.json` makes Claude Code ask before any command mentioning `Publish.ps1`.
+
+The script only publishes merged code: it refuses unless `HEAD` is exactly `origin/main` with no local changes,
+`Thunderstore/CHANGELOG.md` has an entry for `PluginVersion`, and the version is newer than what each site lists (a
+site already on that version is skipped). It then packs, and asks the human to type the version before uploading.
+`-DryRun` runs every check and the pack without uploading; `-Site Thunderstore|Hexium` limits it to one site.
+
+API tokens live only in the user environment variables `THUNDERSTORE_TOKEN` and `HEXIUM_TOKEN`. Never write a token
+into the repo, a commit, a PR, a log line, or any file.
+
 ## Verification before a PR
 
 1. `dotnet test` passes.
