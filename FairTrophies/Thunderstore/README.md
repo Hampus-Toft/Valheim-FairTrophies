@@ -37,3 +37,10 @@ the mod are refused with an "incompatible version" message naming both versions.
 | Setting | Default | |
 |---|---|---|
 | `Debug.LogCounters` | false | Log every counted kill: who was credited, the item, whether it dropped and how many kills are left. |
+
+## AI disclaimer
+
+This mod was mostly made using [Claude Code](https://claude.com/claude-code), Anthropic's AI coding assistant. The
+design and requirements are mine; Claude Code did most of the work: decompiling and analysing Valheim's drop code,
+extracting the drop tables, and writing the code, tests and documentation, all under my direction and review. Please
+report any problems on [GitHub](https://github.com/Hampus-Toft/Valheim-FairTrophies/issues).
