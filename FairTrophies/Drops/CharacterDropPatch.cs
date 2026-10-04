@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using HarmonyLib;
 using UnityEngine;
@@ -6,100 +5,106 @@ using UnityEngine;
 namespace FairTrophies
 {
     /// <summary>
-    /// Takes the drops FairTrophies governs out of vanilla's CharacterDrop.GenerateDropList and decides them with
-    /// <see cref="SharedDropCounter"/> instead. Every other drop still goes through vanilla untouched, so the patch
-    /// survives game updates to the rest of the method.
-    ///
-    /// GenerateDropList runs on whichever peer owns the creature's ZDO when it dies (Character.CustomFixedUpdate
-    /// -> CheckDeath is owner-only; Ragdoll.Setup calls it on the same machine), which is a client in multiplayer -
-    /// not the dedicated server. See docs/VANILLA_DROPS.md.
+    /// Runs on whichever peer owns the dying creature (see docs/VANILLA_DROPS.md). Takes the governed drops out of
+    /// vanilla's CharacterDrop.GenerateDropList so vanilla's own counter never sees them, and reports the kill to the
+    /// server, which routes it to the credited character (<see cref="KillRouting"/>). Every other drop stays vanilla.
     /// </summary>
     [HarmonyPatch(typeof(CharacterDrop), nameof(CharacterDrop.GenerateDropList))]
     internal static class CharacterDropPatch
     {
-        internal static readonly SharedDropCounter Counter = new SharedDropCounter(() => UnityEngine.Random.value);
-
-        internal sealed class State
-        {
-            public List<CharacterDrop.Drop> Original;
-            public List<CharacterDrop.Drop> Governed;
-        }
-
         [HarmonyPrefix]
-        private static void Prefix(CharacterDrop __instance, out State __state)
+        private static void Prefix(CharacterDrop __instance, out List<CharacterDrop.Drop> __state)
         {
             __state = null;
-            if (!FairTrophiesConfig.Enabled.Value) return;
+            if (ZNet.instance == null || ZRoutedRpc.instance == null) return;
+            // The world modifier turns vanilla's bad-luck counter off; respect it by leaving everything to vanilla.
             if (ZoneSystem.instance != null && ZoneSystem.instance.GetGlobalKey(GlobalKeys.NoPseudoDrops)) return;
 
-            List<CharacterDrop.Drop> governed = null;
+            List<CharacterDrop.Drop> rest = null;
             foreach (CharacterDrop.Drop drop in __instance.m_drops)
             {
-                if (!IsGoverned(drop)) continue;
-                (governed ??= new List<CharacterDrop.Drop>()).Add(drop);
+                if (drop?.m_prefab != null && SharedDropCounter.IsGoverned(drop.m_chance))
+                {
+                    if (rest == null)
+                    {
+                        rest = new List<CharacterDrop.Drop>(__instance.m_drops.Count);
+                        foreach (CharacterDrop.Drop kept in __instance.m_drops)
+                        {
+                            if (kept?.m_prefab == null || !SharedDropCounter.IsGoverned(kept.m_chance)) rest.Add(kept);
+                        }
+                    }
+                }
             }
-            if (governed == null) return;
+            if (rest == null) return;
 
-            __state = new State { Original = __instance.m_drops, Governed = governed };
-            List<CharacterDrop.Drop> rest = new List<CharacterDrop.Drop>(__instance.m_drops.Count);
-            foreach (CharacterDrop.Drop drop in __instance.m_drops)
-            {
-                if (!governed.Contains(drop)) rest.Add(drop);
-            }
+            __state = __instance.m_drops;
             __instance.m_drops = rest;
         }
 
         [HarmonyPostfix]
-        private static void Postfix(CharacterDrop __instance, State __state, List<KeyValuePair<GameObject, int>> __result)
+        private static void Postfix(CharacterDrop __instance, List<CharacterDrop.Drop> __state)
         {
-            if (__state == null || __result == null) return;
+            if (__state == null) return;
 
             Character character = __instance.GetComponent<Character>();
             int level = character ? character.GetLevel() : 1;
-            int levelAmountMultiplier = character ? Mathf.Max(1, (int)Mathf.Pow(2f, level - 1)) : 1;
-            foreach (CharacterDrop.Drop drop in __state.Governed)
-            {
-                // Keyed by item like vanilla: every Skeleton variant feeds the one TrophySkeleton counter.
-                string key = drop.m_prefab.name;
-                float weight = SharedDropCounter.StarWeight(level, drop.m_levelMultiplier);
-                bool dropped = Counter.RegisterKill(key, drop.m_chance, weight);
-                Log.Diag($"{Utils.GetPrefabName(__instance.gameObject)} level {level} -> {key} weight {weight}: " +
-                         $"{(dropped ? "DROP" : "no drop")}, {Counter.GetRemaining(key) / drop.m_chance:0.0} base kills left");
-                if (!dropped) continue;
+            Vector3 dropPoint = character
+                ? character.GetCenterPoint() + __instance.transform.TransformVector(__instance.m_spawnOffset)
+                : __instance.transform.position;
+            int creatureHash = Utils.GetPrefabName(__instance.gameObject).GetStableHashCode();
 
-                int amount = VanillaAmount(drop, levelAmountMultiplier);
-                if (amount > 0) __result.Add(new KeyValuePair<GameObject, int>(drop.m_prefab, amount));
-            }
+            KillRouting.ReportKill(creatureHash, level, KillAttribution.LastPlayer(character), dropPoint,
+                RagdollContext.Current, __instance.m_cheated);
         }
 
         // Runs even if vanilla threw, so the creature's drop table is never left filtered.
         [HarmonyFinalizer]
-        private static void Finalizer(CharacterDrop __instance, State __state)
+        private static void Finalizer(CharacterDrop __instance, List<CharacterDrop.Drop> __state)
         {
-            if (__state != null) __instance.m_drops = __state.Original;
+            if (__state != null) __instance.m_drops = __state;
+        }
+    }
+
+    /// <summary>
+    /// Ragdoll.Setup -> SaveLootList is the other caller of GenerateDropList (creatures whose loot drops when the corpse
+    /// fades). Remember which ragdoll is saving its loot so the server's answer can be added to the same corpse.
+    /// </summary>
+    [HarmonyPatch(typeof(Ragdoll), "SaveLootList")]
+    internal static class RagdollContext
+    {
+        internal static ZDOID Current = ZDOID.None;
+
+        private static readonly List<int> DeferredHashes = new List<int>();
+        private static readonly List<int> DeferredAmounts = new List<int>();
+
+        /// <summary>Drops decided while <see cref="Current"/> is still inside SaveLootList; appended once it is done.</summary>
+        internal static void Defer(IList<int> hashes, IList<int> amounts)
+        {
+            DeferredHashes.AddRange(hashes);
+            DeferredAmounts.AddRange(amounts);
         }
 
-        private static bool IsGoverned(CharacterDrop.Drop drop)
+        [HarmonyPrefix]
+        private static void Prefix(Ragdoll __instance)
         {
-            if (drop?.m_prefab == null) return false;
-            // Same eligibility as vanilla's pseudo-random drops, but on the unscaled chance so every star level of a
-            // creature shares one counter.
-            if (drop.m_chance <= 0f || drop.m_chance > 0.3f) return false;
-            if (FairTrophiesConfig.AllRareDrops.Value) return true;
-
-            ItemDrop item = drop.m_prefab.GetComponent<ItemDrop>();
-            return item != null && item.m_itemData.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Trophy;
+            ZNetView view = __instance.GetComponent<ZNetView>();
+            Current = view != null && view.IsValid() ? view.GetZDO().m_uid : ZDOID.None;
         }
 
-        // Mirrors the amount half of vanilla CharacterDrop.GenerateDropList.
-        private static int VanillaAmount(CharacterDrop.Drop drop, int levelAmountMultiplier)
+        [HarmonyPostfix]
+        private static void Postfix(Ragdoll __instance)
         {
-            int amount = drop.m_dontScale
-                ? UnityEngine.Random.Range(drop.m_amountMin, drop.m_amountMax)
-                : Game.instance.ScaleDrops(drop.m_prefab, drop.m_amountMin, drop.m_amountMax);
-            if (drop.m_levelMultiplier) amount *= levelAmountMultiplier;
-            if (drop.m_onePerPlayer) amount = ZNet.instance.GetNrOfPlayers();
-            return Math.Min(amount, 100);
+            if (DeferredHashes.Count == 0) return;
+            ZNetView view = __instance.GetComponent<ZNetView>();
+            if (view != null && view.IsValid()) KillRouting.AppendRagdollLoot(view.GetZDO(), DeferredHashes, DeferredAmounts);
+        }
+
+        [HarmonyFinalizer]
+        private static void Finalizer()
+        {
+            Current = ZDOID.None;
+            DeferredHashes.Clear();
+            DeferredAmounts.Clear();
         }
     }
 }

@@ -10,6 +10,11 @@
       Compile-time-only facades, never copied to the output - the conflict is cosmetic.
     -->
     <NoWarn>$(NoWarn);MSB3277</NoWarn>
+    <Authors>Hampus Toft</Authors>
+    <Company>Hampus Toft</Company>
+    <Product>FairTrophies</Product>
+    <Description>Fair rare drops for Valheim: one bad-luck counter per character, shared by every star level.</Description>
+    <Copyright>Copyright © Hampus Toft</Copyright>
   </PropertyGroup>
 
   <!--
@@ -54,6 +59,10 @@
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>$(ValheimInstallDir)\valheim_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Unity.TextMeshPro">
+      <HintPath>$(ValheimInstallDir)\valheim_Data\Managed\Unity.TextMeshPro.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>

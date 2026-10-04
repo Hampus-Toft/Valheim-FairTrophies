@@ -6,15 +6,17 @@ namespace FairTrophies
     {
         internal static ManualLogSource Source;
 
-        /// <summary>Routine per-kill output; silent unless DiagnosticLogging is on.</summary>
-        internal static void Diag(string message)
+        /// <summary>Per-kill counter output; silent unless LogCounters is on.</summary>
+        internal static void Counter(string message)
         {
-            if (FairTrophiesConfig.DiagnosticLogging != null && FairTrophiesConfig.DiagnosticLogging.Value)
+            if (FairTrophiesConfig.LogCounters != null && FairTrophiesConfig.LogCounters.Value)
             {
                 Source?.LogInfo(message);
             }
         }
 
         internal static void Info(string message) => Source?.LogInfo(message);
+
+        internal static void Warning(string message) => Source?.LogWarning(message);
     }
 }

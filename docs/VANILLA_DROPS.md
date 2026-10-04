@@ -59,4 +59,5 @@ Trophy chances of note: 5% Greydwarf, Neck, Surtling, Wraith, Seeker, StoneGolem
 Morgen, FallenValkyrie, Hare, Tick, Deathsquito; 10% most others; 15% Boar; 30% Gjall; 33% Serpent
 (above the pseudo threshold - plain roll); 50% Deer, Troll, Abomination.
 
-Re-dump the tables in game with the `LogDropTables` config option.
+To re-extract the tables after a game update, load every bundle in `StreamingAssets/SoftRef/Bundles` with UnityPy
+and read each MonoBehaviour whose type tree has `m_drops` entries with `m_levelMultiplier`.

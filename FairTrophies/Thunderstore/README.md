@@ -1,31 +1,39 @@
 # FairTrophies
 
-Valheim already has hidden "bad-luck protection" for rare drops (30% chance or lower): a countdown that
-guarantees the drop within roughly twice the expected number of kills. FairTrophies makes that countdown fair.
+*By Hampus Toft.* **Client & server mod - install it on the server and on every player.**
 
-## What it changes
+Valheim already has hidden bad-luck protection for every creature drop of 30% or less (trophies, Jotun armor molds,
+Deep North gemstones, Memorial Coal, coins...): a countdown that guarantees the drop within twice the expected number
+of kills. FairTrophies keeps vanilla's drop rates exactly, and fixes what makes that countdown unfair:
 
-- **Star levels no longer reset your progress.** Vanilla throws the countdown away and re-rolls it whenever you
-  kill a creature whose star level changes the drop chance. FairTrophies keeps one countdown per item; a 1-star
-  kill simply counts double and a 2-star kill four times, matching vanilla's intended chances. Among trophies only
-  the Unbjorn's chance scales with stars; turn on `AllRareDrops` to cover the other affected drops too (Jotun
-  Warrior armor molds, Deep North gemstones, Memorial Coal, goblin coins...).
-- Every other drop is left to vanilla. The `NoPseudoDrops` world modifier is respected.
+| Vanilla | FairTrophies |
+|---|---|
+| Killing a star level whose drop chance differs (e.g. a 1-star Jotun after 0-stars) **throws the countdown away** and rolls a new one. | One countdown per item, shared by every star level. A 1-star kill counts double and a 2-star kill four times (vanilla's own star multipliers) - never a reset. |
+| The countdown lives in the memory of whichever player's game is simulating the creature - your kills can use up a friend's countdown. | Every character has their own countdowns. Kills only ever count for the character credited with them. |
+| Lost every time the game closes. | Saved in the character file, so it follows the character between sessions, worlds and servers. |
 
-Planned: keeping the countdown across game restarts.
+Drop chances and amounts always come from the game's own drop tables - nothing to configure. The `NoPseudoDrops`
+world modifier is respected (FairTrophies stays out of the way when it is on).
 
-## Configuration
+## Who gets credit for a kill
 
-`BepInEx/config/com.hampustoft.fairtrophies.cfg`
-
-| Setting | Default | |
-|---|---|---|
-| `General.Enabled` | true | Turn the mod off without uninstalling it. |
-| `General.AllRareDrops` | false | Also use the shared countdown for non-trophy drops of 30% or less (armor molds, gemstones, coins...). |
-| `Debug.LogDropTables` | false | Log every creature's trophy chance on world load. |
-| `Debug.DiagnosticLogging` | false | Log every counted kill. |
+1. The last player to damage the creature - also when it then dies to something else (fall, fire, drowning, another
+   creature).
+2. A creature no player ever hit (mob farms, traps) counts for the player whose game was simulating it - normally the
+   player standing at the farm.
+3. A creature the dedicated server simulated on its own counts for the nearest player.
 
 ## Multiplayer
 
-Valheim rolls a creature's loot on the client that controls that creature, not on the server, so **every player
-should install the mod**. Installing it on a dedicated server alone has no effect.
+Valheim rolls a creature's loot on the computer simulating that creature, usually a player's. The server tells that
+computer which character gets the kill, that character's client updates its countdown, and the drop appears on the
+corpse as usual. The server and every client must run the **same FairTrophies version**; mismatches and players without
+the mod are refused with an "incompatible version" message naming both versions.
+
+## Configuration
+
+`BepInEx/config/HampusToft.FairTrophies.cfg` holds a single debug option:
+
+| Setting | Default | |
+|---|---|---|
+| `Debug.LogCounters` | false | Log every counted kill: who was credited, the item, whether it dropped and how many kills are left. |

@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Threading;
 using FairTrophies;
 using Xunit;
 
@@ -20,16 +22,16 @@ namespace FairTrophies.Tests.Drops
             var counter = Fixed(0.5f, 0.5f);
             for (int i = 0; i < 9; i++)
             {
-                Assert.False(counter.RegisterKill("TrophyWolf", 0.1f, 1f));
+                Assert.False(counter.RegisterKill("TrophyBjorn", 0.1f, 1f));
             }
-            Assert.True(counter.RegisterKill("TrophyWolf", 0.1f, 1f));
+            Assert.True(counter.RegisterKill("TrophyBjorn", 0.1f, 1f));
         }
 
         [Fact]
         public void StarredKillDoesNotResetProgress()
         {
             // Vanilla re-rolls when a kill with a different effective chance comes along; here 9 base kills plus one
-            // weight-2 kill (=11 base kills) passes the 10-kill interval.
+            // weight-2 kill (= 11 base kills) passes the 10-kill interval.
             var counter = Fixed(0.5f, 0.5f);
             for (int i = 0; i < 9; i++)
             {
@@ -48,16 +50,26 @@ namespace FairTrophies.Tests.Drops
         }
 
         [Fact]
-        public void AtMostOneDropPerKill()
+        public void DebtBeyondOneIntervalMeansTheNextKillDropsToo()
         {
-            var counter = Fixed(0f, 0f, 0.5f);
-            Assert.True(counter.RegisterKill("Item", 0.3f, 4f));
-            Assert.Equal(0f, counter.GetRemaining("Item").Value);
-            Assert.True(counter.RegisterKill("Item", 0.3f, 1f));
+            var counter = Fixed(0f, 0.05f, 0.5f);
+            // 0 left, -0.8 after a 0.8 step; a roll of 0.1 leaves -0.7 of debt.
+            Assert.True(counter.RegisterKill("Item", 0.2f, 4f));
+            Assert.Equal(-0.7f, counter.GetRemaining("Item").Value, 4);
+            Assert.True(counter.RegisterKill("Item", 0.2f, 1f));
         }
 
         [Fact]
-        public void KeysAreIndependent()
+        public void EffectiveChanceOfOneOrMoreAlwaysDropsWithoutTouchingTheCounter()
+        {
+            var counter = Fixed();
+            Assert.True(counter.RegisterKill("Coins", 0.25f, 4f));
+            Assert.True(counter.RegisterKill("Coins", 0.25f, 16f));
+            Assert.Null(counter.GetRemaining("Coins"));
+        }
+
+        [Fact]
+        public void ItemsAreIndependent()
         {
             var counter = Fixed(0.5f, 0.5f);
             counter.RegisterKill("A", 0.1f, 1f);
@@ -77,9 +89,11 @@ namespace FairTrophies.Tests.Drops
         [Theory]
         [InlineData(0.1f, 1f)]
         [InlineData(0.1f, 2f)]
+        [InlineData(0.1f, 4f)]
         [InlineData(0.03f, 4f)]
+        [InlineData(0.2f, 4f)]
         [InlineData(0.05f, 1f)]
-        public void LongRunRateMatchesEffectiveChance(float chance, float weight)
+        public void LongRunRateMatchesVanillaEffectiveChance(float chance, float weight)
         {
             var rng = new Random(1234);
             var counter = new SharedDropCounter(() => (float)rng.NextDouble());
@@ -90,8 +104,8 @@ namespace FairTrophies.Tests.Drops
                 if (counter.RegisterKill("Item", chance, weight)) drops++;
             }
 
-            double expected = chance * weight;
-            Assert.InRange((double)drops / kills, expected * 0.97, expected * 1.03);
+            double expected = Math.Min(1.0, chance * weight);
+            Assert.InRange((double)drops / kills, expected * 0.98, expected * 1.02);
         }
 
         [Fact]
@@ -110,7 +124,21 @@ namespace FairTrophies.Tests.Drops
                 if (counter.RegisterKill("MoldArmorGoldChest", 0.03f, w)) drops++;
             }
 
-            Assert.InRange(drops, expected * 0.97, expected * 1.03);
+            Assert.InRange(drops, expected * 0.98, expected * 1.02);
+        }
+
+        [Fact]
+        public void NoKillIsEverMoreThanTwiceTheExpectedIntervalAwayFromADrop()
+        {
+            // The guarantee vanilla's counter gives: at 10% you never go more than 20 kills without the drop.
+            var rng = new Random(7);
+            var counter = new SharedDropCounter(() => (float)rng.NextDouble());
+            int dry = 0;
+            for (int i = 0; i < 100_000; i++)
+            {
+                dry = counter.RegisterKill("TrophyBjorn", 0.1f, 1f) ? 0 : dry + 1;
+                Assert.True(dry < 20);
+            }
         }
 
         [Theory]
@@ -122,6 +150,71 @@ namespace FairTrophies.Tests.Drops
         public void StarWeightMatchesVanillaMultiplier(int level, bool levelMultiplier, float expected)
         {
             Assert.Equal(expected, SharedDropCounter.StarWeight(level, levelMultiplier));
+        }
+
+        [Theory]
+        [InlineData(0.05f, true)]
+        [InlineData(0.3f, true)]
+        [InlineData(0.33f, false)]
+        [InlineData(0.5f, false)]
+        [InlineData(0f, false)]
+        public void GovernsExactlyVanillasPseudoRandomDrops(float chance, bool governed)
+        {
+            Assert.Equal(governed, SharedDropCounter.IsGoverned(chance));
+        }
+
+        [Fact]
+        public void SerializeRoundTrips()
+        {
+            var counter = Fixed(0.5f, 0.25f);
+            counter.RegisterKill("TrophyBjorn", 0.1f, 1f);
+            counter.RegisterKill("MoldArmorGoldChest", 0.03f, 4f);
+            counter.Set("Debt", -0.123456789f);
+
+            SharedDropCounter copy = SharedDropCounter.Parse(counter.Serialize(), () => 0f);
+
+            Assert.Equal(3, copy.Count);
+            foreach (KeyValuePair<string, float> item in counter.Snapshot())
+            {
+                Assert.Equal(item.Value, copy.GetRemaining(item.Key).Value);
+            }
+        }
+
+        [Fact]
+        public void SerializeIgnoresTheCurrentCulture()
+        {
+            CultureInfo original = Thread.CurrentThread.CurrentCulture;
+            try
+            {
+                Thread.CurrentThread.CurrentCulture = new CultureInfo("sv-SE");
+                var counter = Fixed();
+                counter.Set("TrophyBjorn", 0.5f);
+                Assert.Equal("1|TrophyBjorn=0.5", counter.Serialize());
+                Assert.Equal(0.5f, SharedDropCounter.Parse("1|TrophyBjorn=0.5", () => 0f).GetRemaining("TrophyBjorn"));
+            }
+            finally
+            {
+                Thread.CurrentThread.CurrentCulture = original;
+            }
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("2|TrophyBjorn=0.5")]
+        [InlineData("garbage")]
+        public void ParseOfMissingOrUnknownDataStartsFresh(string text)
+        {
+            Assert.Equal(0, SharedDropCounter.Parse(text, () => 0f).Count);
+        }
+
+        [Fact]
+        public void ParseSkipsMalformedEntries()
+        {
+            SharedDropCounter counter = SharedDropCounter.Parse("1|A=0.5;broken;=1;B=nope;C=NaN;D=-0.25", () => 0f);
+            Assert.Equal(2, counter.Count);
+            Assert.Equal(0.5f, counter.GetRemaining("A"));
+            Assert.Equal(-0.25f, counter.GetRemaining("D"));
         }
     }
 }

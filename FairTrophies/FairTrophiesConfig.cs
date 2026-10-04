@@ -2,23 +2,17 @@ using BepInEx.Configuration;
 
 namespace FairTrophies
 {
+    /// <summary>
+    /// Deliberately only a debug switch: drop chances always come from the game's own drop tables.
+    /// </summary>
     internal static class FairTrophiesConfig
     {
-        public static ConfigEntry<bool> Enabled;
-        public static ConfigEntry<bool> AllRareDrops;
-        public static ConfigEntry<bool> LogDropTables;
-        public static ConfigEntry<bool> DiagnosticLogging;
+        public static ConfigEntry<bool> LogCounters;
 
         public static void Initialize(ConfigFile config)
         {
-            Enabled = config.Bind("General", "Enabled", true,
-                "Replace vanilla's per-star-level bad-luck counter with one shared counter per creature.");
-            AllRareDrops = config.Bind("General", "AllRareDrops", false,
-                "Also apply the shared counter to every other drop with a base chance of 30% or less, not just trophies.");
-            LogDropTables = config.Bind("Debug", "LogDropTables", false,
-                "On world load, log every creature's trophy chance and whether it scales with star level.");
-            DiagnosticLogging = config.Bind("Debug", "DiagnosticLogging", false,
-                "Log every governed kill: counter key, weight, drop result and kills left.");
+            LogCounters = config.Bind("Debug", "LogCounters", false,
+                "Log every counted kill: who was credited, the item, whether it dropped and how many kills are left.");
         }
     }
 }
