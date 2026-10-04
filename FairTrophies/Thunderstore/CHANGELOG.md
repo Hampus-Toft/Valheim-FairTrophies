@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.2
+
+- Star levels multiply a rare drop's loot exactly once (x2 for 1 star, x4 for 2 stars), instead of vanilla's
+  chance-and-amount (up to x16):
+  - Trophies, Ancient Gemstones and armor molds drop more often, always one at a time.
+  - Resources (Memorial Coal, coins, Lingonberries, Asksvin hatchling/chicken meat, hides, Mork ooze, seal blubber)
+    keep the 0-star chance and drop more per drop.
+
 ## 1.0.1
 
 - Trophies always drop as a single trophy. Star levels still make them come sooner (a 2-star kill counts four times),

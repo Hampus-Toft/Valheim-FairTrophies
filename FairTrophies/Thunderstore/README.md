@@ -8,13 +8,12 @@ of kills. FairTrophies keeps vanilla's drop rates exactly, and fixes what makes 
 
 | Vanilla | FairTrophies |
 |---|---|
-| Killing a star level whose drop chance differs (e.g. a 1-star Jotun after 0-stars) **throws the countdown away** and rolls a new one. | One countdown per item, shared by every star level. A 1-star kill counts double and a 2-star kill four times (vanilla's own star multipliers) - never a reset. |
+| Killing a star level whose drop chance differs (e.g. a 1-star Jotun after 0-stars) **throws the countdown away** and rolls a new one. | One countdown per item, shared by every star level - never a reset. |
+| Star-scaled rare drops get the star bonus twice: chance x4 **and** amount x4, so a 2-star Unbjorn can drop 4 trophies (up to x16 loot). | Stars multiply the loot once (x2 / x4). Trophies, Ancient Gemstones and armor molds drop more often (a 2-star kill counts four times on the countdown), one at a time. Resources (Memorial Coal, coins, meat, hides...) keep the normal chance and drop more per drop. |
 | The countdown lives in the memory of whichever player's game is simulating the creature - your kills can use up a friend's countdown. | Every character has their own countdowns. Kills only ever count for the character credited with them. |
 | Lost every time the game closes. | Saved in the character file, so it follows the character between sessions, worlds and servers. |
 
-Drop chances and amounts always come from the game's own drop tables - nothing to configure. The one exception:
-a trophy always drops as one trophy (vanilla gives a 2-star Unbjorn's trophy x4); its star bonus comes from the
-counter filling faster instead. The `NoPseudoDrops`
+Base drop chances and amounts always come from the game's own drop tables - nothing to configure. The `NoPseudoDrops`
 world modifier is respected (FairTrophies stays out of the way when it is on).
 
 ## Who gets credit for a kill

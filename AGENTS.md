@@ -41,6 +41,7 @@ FairTrophies/
 ├── Log.cs                      # Log.Counter: silent unless LogCounters is on
 ├── Drops/
 │   ├── SharedDropCounter.cs    # Pure counter logic + m_customData text format (unit tested)
+│   ├── StarScaling.cs          # Pure: star level -> counter weight or amount multiplier, never both (unit tested)
 │   ├── CharacterCounters.cs    # A character's counters in Player.m_customData; decides drops for one kill
 │   ├── CharacterDropPatch.cs   # Strips governed drops from GenerateDropList and reports the kill; ragdoll context
 │   └── KillAttribution.cs      # Tags creatures with the last player to damage them (ZDO key)
@@ -54,8 +55,10 @@ FairTrophies/
   modifier is on. Everything else stays in vanilla's `GenerateDropList`; keep it that way rather than
   reimplementing the method.
 - Counters are keyed by item prefab name (like vanilla) and measured in expected drops: rolled uniformly in [0, 2),
-  each kill subtracts `min(1, m_chance * 2^(level-1))` (or `m_chance` when `m_levelMultiplier` is off), overshoot
-  carries over.
+  each kill subtracts `min(1, m_chance * weight)`, overshoot carries over.
+- Stars multiply loot exactly once (`Drops/StarScaling.cs`, author's rule): for `m_levelMultiplier` drops, trophies,
+  `AncientGemstone*` and `MoldArmor*` get weight `2^(level-1)` and amount x1; every other item gets weight 1 and
+  amount x`2^(level-1)`. Vanilla applies both (up to x16).
 - Credit order (server, `KillRouting.RPC_Kill`): last player to damage the creature -> the creature owner's local
   player -> nearest player. The credited player's own client updates its counters; the server stores nothing.
 - Every RPC payload change is a protocol change: bump `PluginVersion` so `VersionCheck` keeps old and new apart.

@@ -37,7 +37,7 @@ namespace FairTrophies
         /// </summary>
         /// <param name="item">The dropped item's prefab name - one counter per item, like vanilla.</param>
         /// <param name="baseChance">Unscaled drop chance of the item (CharacterDrop.Drop.m_chance).</param>
-        /// <param name="weight">Star multiplier for this kill (<see cref="StarWeight"/>), 1 for a 0-star.</param>
+        /// <param name="weight">How many base kills this kill counts for (<see cref="StarScaling.Weight"/>), 1 for a 0-star.</param>
         public bool RegisterKill(string item, float baseChance, float weight)
         {
             float step = baseChance * weight;
@@ -111,31 +111,11 @@ namespace FairTrophies
         }
 
         /// <summary>
-        /// The vanilla star multiplier (CharacterDrop.GenerateDropList): 2^(level-1), level 1 = 0 stars. Drops with
-        /// m_levelMultiplier off (almost every trophy) have the same chance at every star level, so the weight is 1.
-        /// </summary>
-        public static float StarWeight(int level, bool levelMultiplier)
-        {
-            if (!levelMultiplier || level <= 1) return 1f;
-            return (float)Math.Pow(2, level - 1);
-        }
-
-        /// <summary>
         /// Drops vanilla puts behind its bad-luck counter: base chance at or below 30% (vanilla checks the star-scaled
         /// chance, but checking the base chance keeps every star level of a drop on the same counter).
         /// </summary>
         public static bool IsGoverned(float baseChance) => baseChance > 0f && baseChance <= PseudoDropThreshold;
 
-        /// <summary>
-        /// How many times a won drop's amount is multiplied for the creature's star level. Vanilla multiplies by the same
-        /// 2^(level-1) as the chance for m_levelMultiplier drops, so a 2-star Unbjorn would drop 4 trophies; a trophy
-        /// already gets its star bonus through the faster-filling counter, so it always drops as one.
-        /// </summary>
-        public static int AmountMultiplier(int level, bool levelMultiplier, bool isTrophy)
-        {
-            if (isTrophy || !levelMultiplier || level <= 1) return 1;
-            return (int)Math.Pow(2, level - 1);
-        }
 
         public const float PseudoDropThreshold = 0.3f;
     }

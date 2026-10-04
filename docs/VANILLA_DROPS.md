@@ -20,8 +20,10 @@ For each entry in the creature's `m_drops`:
    - Otherwise `killsLeft - 1`; at `<= 0` the item drops and a new `Random.Range(0, (int)(2/chance + 1))`
      is stored. Mean is about `1/chance` kills.
 4. Amount: `ScaleDrops(min, max)` (or plain random when `m_dontScale`), multiplied by `2^(level-1)`
-   when `m_levelMultiplier`, `onePerPlayer` overrides it, capped at 100. So a 2-star Unbjorn drops 4
-   trophies in vanilla; FairTrophies keeps every other amount but drops trophies as one.
+   when `m_levelMultiplier`, `onePerPlayer` overrides it, capped at 100. So vanilla applies the star
+   multiplier twice (chance and amount): a 2-star Unbjorn has 40% for 4 trophies. FairTrophies applies it once
+   (`Drops/StarScaling.cs`): trophies, `AncientGemstone*` and `MoldArmor*` scale the rate (one per drop), every
+   other item scales the amount at the base chance.
 
 `s_pseudoCounter` is never cleared or saved: it lives for the **game process**, so it survives logout
 and even carries across worlds and characters, but is lost when the game closes.

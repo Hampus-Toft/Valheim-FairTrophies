@@ -142,26 +142,41 @@ namespace FairTrophies.Tests.Drops
         }
 
         [Theory]
-        [InlineData(1, true, 1f)]
-        [InlineData(2, true, 2f)]
-        [InlineData(3, true, 4f)]
-        [InlineData(3, false, 1f)]
-        [InlineData(0, true, 1f)]
-        public void StarWeightMatchesVanillaMultiplier(int level, bool levelMultiplier, float expected)
+        // Unique rare items: stars make them more common, always one per drop.
+        [InlineData(3, true, "TrophyBjornUndead", true, 4f, 1)]
+        [InlineData(2, true, "TrophyBjornUndead", true, 2f, 1)]
+        [InlineData(3, true, "AncientGemstoneBlack", false, 4f, 1)]
+        [InlineData(3, true, "MoldArmorGoldChest", false, 4f, 1)]
+        [InlineData(3, true, "MoldArmormediumChest", false, 4f, 1)]
+        // Resources: vanilla chance, more per drop.
+        [InlineData(3, true, "MemorialCoal", false, 1f, 4)]
+        [InlineData(3, true, "Coins", false, 1f, 4)]
+        [InlineData(2, true, "AsksvinMeat", false, 1f, 2)]
+        // Stars don't affect the drop at all.
+        [InlineData(3, false, "TrophyBjorn", true, 1f, 1)]
+        [InlineData(1, true, "TrophyBjornUndead", true, 1f, 1)]
+        [InlineData(0, true, "Coins", false, 1f, 1)]
+        public void StarsScaleEitherRateOrAmountNeverBoth(int level, bool levelMultiplier, string item, bool isTrophy,
+            float weight, int amountMultiplier)
         {
-            Assert.Equal(expected, SharedDropCounter.StarWeight(level, levelMultiplier));
+            StarScaling stars = StarScaling.For(level, levelMultiplier, item, isTrophy);
+            Assert.Equal(weight, stars.Weight);
+            Assert.Equal(amountMultiplier, stars.AmountMultiplier);
         }
 
         [Theory]
-        [InlineData(3, true, true, 1)]   // 2-star Unbjorn: one trophy, not vanilla's four
-        [InlineData(2, true, true, 1)]
-        [InlineData(3, true, false, 4)]  // 2-star Jotun mold / goblin coins: vanilla amount scaling kept
-        [InlineData(2, true, false, 2)]
-        [InlineData(3, false, false, 1)]
-        [InlineData(1, true, false, 1)]
-        public void AmountMultiplierKeepsTrophiesSingle(int level, bool levelMultiplier, bool isTrophy, int expected)
+        [InlineData(1)]
+        [InlineData(2)]
+        [InlineData(3)]
+        [InlineData(5)]
+        public void TotalLootMultiplierIsExactlyTheStarMultiplier(int level)
         {
-            Assert.Equal(expected, SharedDropCounter.AmountMultiplier(level, levelMultiplier, isTrophy));
+            double expected = level <= 1 ? 1 : Math.Pow(2, level - 1);
+            foreach ((string item, bool trophy) in new[] { ("TrophyBjornUndead", true), ("MoldArmorGoldLegs", false), ("Coins", false) })
+            {
+                StarScaling stars = StarScaling.For(level, true, item, trophy);
+                Assert.Equal(expected, stars.Weight * stars.AmountMultiplier);
+            }
         }
 
         [Theory]

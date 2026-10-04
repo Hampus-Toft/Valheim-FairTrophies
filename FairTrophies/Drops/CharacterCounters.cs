@@ -26,18 +26,19 @@ namespace FairTrophies
                 if (drop.m_prefab == null || !SharedDropCounter.IsGoverned(drop.m_chance)) continue;
 
                 string item = drop.m_prefab.name;
-                float weight = SharedDropCounter.StarWeight(level, drop.m_levelMultiplier);
-                bool dropped = counter.RegisterKill(item, drop.m_chance, weight);
+                ItemDrop itemDrop = drop.m_prefab.GetComponent<ItemDrop>();
+                bool isTrophy = itemDrop != null && itemDrop.m_itemData.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Trophy;
+                StarScaling stars = StarScaling.For(level, drop.m_levelMultiplier, item, isTrophy);
+                bool dropped = counter.RegisterKill(item, drop.m_chance, stars.Weight);
 
                 float? left = counter.GetRemaining(item);
                 Log.Counter($"{player.GetPlayerName()} killed {creatureName} (level {level}) -> {item} " +
-                            $"chance {drop.m_chance:0.###} x{weight}: {(dropped ? "DROP" : "no drop")}, " +
+                            $"chance {drop.m_chance:0.###} rate x{stars.Weight} amount x{stars.AmountMultiplier}: " +
+                            $"{(dropped ? "DROP" : "no drop")}, " +
                             $"{(left.HasValue ? (left.Value / drop.m_chance).ToString("0.0") : "-")} base kills to next");
                 if (!dropped) continue;
 
-                ItemDrop itemDrop = drop.m_prefab.GetComponent<ItemDrop>();
-                bool isTrophy = itemDrop != null && itemDrop.m_itemData.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Trophy;
-                int amount = VanillaAmount(drop, SharedDropCounter.AmountMultiplier(level, drop.m_levelMultiplier, isTrophy));
+                int amount = VanillaAmount(drop, stars.AmountMultiplier);
                 if (amount > 0) drops.Add(new KeyValuePair<int, int>(item.GetStableHashCode(), amount));
             }
 
@@ -46,7 +47,7 @@ namespace FairTrophies
         }
 
         // Mirrors the amount half of vanilla CharacterDrop.GenerateDropList, except the star multiplier comes from
-        // SharedDropCounter.AmountMultiplier (no star multiplier for trophies).
+        // StarScaling (1 for unique rare items, whose star bonus is the higher drop rate instead).
         private static int VanillaAmount(CharacterDrop.Drop drop, int amountMultiplier)
         {
             int amount = drop.m_dontScale
